@@ -1,0 +1,15 @@
+{
+  "name": "react-native-browser-polyfills",
+  "version": "1.0.1",
+  "description": "Set of browser polyfills for React Native",
+  "main": "index.js",
+  "license": "MIT",
+  "author": "Arda TANRIKULU",
+  "dependencies": {
+    "react-native-sync-localstorage": "0.0.3"
+  },
+  "peerDependencies": {
+    "react-native": "~0.55.2"
+  },
+  "repository": "https://github.com/ardatan/react-native-browser-polyfills"
+}
