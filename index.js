@@ -1,44 +1,52 @@
 const {
     Dimensions,
     Linking,
-    NetInfo
+    NetInfo,
+    Geolocation,
+    Vibrate,
+    Alert,
+    AppState
 } = require("react-native");
 const localStorage = require('react-native-sync-localstorage');
 
 let currentUrl = '';
-let onLine;
+let readyState = 'loading';
+let netInfo = {
+    changeListeners: [],
+    addEventListener(eventName, callback) {
+        switch (eventName) {
+            case 'change':
+                this.changeListeners.push(callback);
+                break;
+        }
+    },
+    removeEventListener() {
+        switch (eventName) {
+            case 'change':
+                this.changeListeners.splice(this.changeListeners.indexOf(callback), 1);
+                break;
+        }
+    }
+};
+
+function handleConnectionUpdate(info) {
+    netInfo = Object.assign(netInfo, info);
+}
+
+NetInfo.addEventListener('connectionChange', info => {
+    handleConnectionUpdate(info);
+    info.callbacks.forEach(callback => callback(info));
+});
 
 const promises = [
     localStorage.getAllFromLocalStorage(),
     Linking.getInitialURL().then(url => (url && (currentUrl = url))),
-    NetInfo.getConnectionInfo().then(info => onLine = (info.type && info.type !== 'none'))
+    NetInfo.getConnectionInfo().then(handleConnectionUpdate)
 ];
 
 const allPromises = Promise.all(promises).then(() => {
-    this.readyState = 'complete';
+    readyState = 'complete';
 });
-
-window.self = global;
-
-window.localStorage = localStorage;
-window.sessionStorage = localStorage;
-
-window.document = {
-    readyState: 'loading',
-    addEventListener(eventName, callback) {
-        switch (eventName) {
-            case 'deviceready':
-            case 'DOMContentLoaded':
-                allPromises.then(callback);
-                break;
-        }
-    },
-    getElementsByTagName() {
-        return {
-            item() {}
-        };
-    }
-};
 
 Linking.addEventListener('url', event => (event.url && (currentUrl = event.url)));
 
@@ -57,8 +65,8 @@ function parseUrl(url) {
         set hash(hash) {
             return Linking.openURL(this.href + '#' + hash);
         },
-        replace() {
-
+        replace(url) {
+            return Linking.openURL(url);
         },
         toString() {
             return url;
@@ -69,7 +77,16 @@ Object.defineProperty(self || window, 'navigator', {
     get() {
         return {
             get onLine() {
-                return onLine;
+                return !!netInfo.type;
+            },
+            get geolocation() {
+                return Geolocation;
+            },
+            get vibrate() {
+                return Vibrate.vibrate.bind(Vibrate);
+            },
+            get connection() {
+                return netInfo;
             }
         }
     }
@@ -84,6 +101,58 @@ Object.defineProperty(self || window, 'location', {
     }
 });
 Object.defineProperties(window, {
+    localStorage: {
+        get() {
+            return localStorage;
+        }
+    },
+    sessionStorage: {
+        get() {
+            return localStorage
+        }
+    },
+    document: {
+        get() {
+            return {
+                readyState,
+                addEventListener(eventName, callback) {
+                    switch (eventName) {
+                        case 'deviceready':
+                        case 'DOMContentLoaded':
+                            if (this.readyState !== 'complete') {
+                                allPromises.then(callback);
+                            }
+                            break;
+                        case 'visibilitychange':
+                            AppState.addEventListener('change', e => callback({
+                                visibilitychange: e.match(/inactive|background/) ? 'hidden' : 'visible'
+                            }));
+                            break;
+                    }
+                },
+                getElementsByTagName() {
+                    return {
+                        item() {
+                            return {
+                                appendChild() {}
+                            }
+                        }
+                    };
+                },
+                createElement() {
+                    return {
+                        setAttribute() {}
+                    }
+                },
+                get hidden() {
+                    return AppState.currentState.match(/inactive|background/);
+                },
+                get visibilityState() {
+                    return this.hidden ? 'hidden' : 'visible';
+                }
+            }
+        }
+    },
     self: {
         configurable: true,
         value: global
@@ -93,21 +162,43 @@ Object.defineProperties(window, {
         value(eventName, callback) {
             switch (eventName) {
                 case 'load':
-                    allPromises.then(callback);
+                    if (this.document, readyState !== 'complete') {
+                        allPromises.then(callback);
+                    }
                     break;
                 case 'online':
-                    NetInfo.addEventListener(
-                        'connectionChange',
-                        callback
-                    );
+                    netInfo.changeListeners.push(callback);
+                    break;
+                case 'hashchange':
+                    let oldHash = location.hash;
+                    Linking.addEventListener('url', event => {
+                        const {
+                            hash
+                        } = parseUrl(event.url);
+                        if (hash !== oldHash) {
+                            callback(event);
+                        }
+                        oldHash = hash;
+                    });
                     break;
             }
         }
     },
     attachEvent: {
         configurable: true,
-        value(...args) {
-            console.log(args)
+        value(eventNameWithOn, callback) {
+            const eventName = eventNameWithOn.replace('on', '');
+            return this.addEventListener(eventName, callback);
+        }
+    },
+    onload: {
+        set(callback) {
+            return this.addEventListener('load', callback);
+        }
+    },
+    onhashchange: {
+        set(callback) {
+            return this.addEventListener('hashchange', callback);
         }
     },
     outerWidth: {
@@ -120,6 +211,11 @@ Object.defineProperties(window, {
         configurable: true,
         get() {
             return Dimensions.get('window').height;
+        }
+    },
+    alert: {
+        get() {
+            return Alert.alert.bind(Alert);
         }
     }
 });
