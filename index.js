@@ -73,31 +73,24 @@ function parseUrl(url) {
         }
     }
 }
-const navigatorPolyfills = {
-    get onLine() {
-        return !!netInfo.type;
-    },
-    get vibrate() {
-        return Vibrate.vibrate.bind(Vibrate);
-    },
-    get connection() {
-        return netInfo;
-    }
-};
-if('navigator' in (self || window)){
-    Object.assign((self || window).navigator, navigatorPolyfills);
-}else{
-    Object.defineProperty(self || window, 'navigator', {
-        get() {
-            return {
-                get geolocation() {
-                    return Geolocation;
-                },
-                ...navigatorPolyfills
+Object.defineProperty(self || window, 'navigator', {
+    get() {
+        return {
+            get onLine() {
+                return !!netInfo.type;
+            },
+            get vibrate() {
+                return Vibrate.vibrate.bind(Vibrate);
+            },
+            get geolocation() {
+                return Geolocation;
+            },
+            get connection() {
+                return netInfo;
             }
         }
-    })
-}
+    }
+});
 Object.defineProperty(self || window, 'location', {
     configurable: true,
     get() {
