@@ -2,7 +2,6 @@ const {
     Dimensions,
     Linking,
     NetInfo,
-    Geolocation,
     Vibrate,
     Alert,
     AppState
@@ -35,7 +34,7 @@ function handleConnectionUpdate(info) {
 
 NetInfo.addEventListener('connectionChange', info => {
     handleConnectionUpdate(info);
-    info.callbacks.forEach(callback => callback(info));
+    netInfo.changeListeners.forEach(callback => callback(info));
 });
 
 const promises = [
@@ -59,6 +58,9 @@ function parseUrl(url) {
         set href(url) {
             return Linking.openURL(url);
         },
+        get pathname(){
+            return this.href;
+        },
         get hash() {
             return urlArr[1] ? `#${urlArr[1]}` : ""
         },
@@ -73,33 +75,6 @@ function parseUrl(url) {
         }
     }
 }
-Object.defineProperty(self || window, 'navigator', {
-    get() {
-        return {
-            get onLine() {
-                return !!netInfo.type;
-            },
-            get vibrate() {
-                return Vibrate.vibrate.bind(Vibrate);
-            },
-            get geolocation() {
-                return Geolocation;
-            },
-            get connection() {
-                return netInfo;
-            }
-        }
-    }
-});
-Object.defineProperty(self || window, 'location', {
-    configurable: true,
-    get() {
-        return parseUrl(currentUrl);
-    },
-    set(url) {
-        return Linking.openURL(url);
-    }
-});
 Object.defineProperties(window, {
     localStorage: {
         get() {
@@ -141,8 +116,11 @@ Object.defineProperties(window, {
                 },
                 createElement() {
                     return {
-                        setAttribute() {}
-                    }
+                        setAttribute() {},
+                        get pathname(){
+                            return '';
+                        }
+                    };
                 },
                 get hidden() {
                     return AppState.currentState.match(/inactive|background/);
@@ -217,5 +195,36 @@ Object.defineProperties(window, {
         get() {
             return Alert.alert.bind(Alert);
         }
+    }
+});
+
+const Geolocation = navigator.geolocation;
+
+Object.defineProperty(self || window, 'navigator', {
+    get() {
+        return {
+            get onLine() {
+                return !!netInfo.type;
+            },
+            get vibrate() {
+                return Vibrate.vibrate.bind(Vibrate);
+            },
+            get geolocation() {
+                return Geolocation;
+            },
+            get connection() {
+                return netInfo;
+            }
+        }
+    }
+});
+
+Object.defineProperty(self || window, 'location', {
+    configurable: true,
+    get() {
+        return parseUrl(currentUrl);
+    },
+    set(url) {
+        return Linking.openURL(url);
     }
 });
