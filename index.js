@@ -1,11 +1,11 @@
 const {
     Dimensions,
     Linking,
-    NetInfo,
     Vibrate,
     Alert,
     AppState
 } = require("react-native");
+const NetInfo = require("@react-native-community/netinfo");
 const localStorage = require('react-native-sync-localstorage');
 
 let currentUrl = '';
@@ -32,7 +32,7 @@ function handleConnectionUpdate(info) {
     netInfo = Object.assign(netInfo, info);
 }
 
-NetInfo.addEventListener('connectionChange', info => {
+NetInfo.addEventListener(info => {
     handleConnectionUpdate(info);
     netInfo.changeListeners.forEach(callback => callback(info));
 });
@@ -40,7 +40,7 @@ NetInfo.addEventListener('connectionChange', info => {
 const promises = [
     localStorage.getAllFromLocalStorage(),
     Linking.getInitialURL().then(url => (url && (currentUrl = url))),
-    NetInfo.getConnectionInfo().then(handleConnectionUpdate)
+    NetInfo.fetch().then(handleConnectionUpdate)
 ];
 
 const allPromises = Promise.all(promises).then(() => {
