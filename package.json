@@ -6,7 +6,7 @@
   "license": "MIT",
   "author": "Arda TANRIKULU",
   "dependencies": {
-    "@react-native-community/netinfo": "5.9.10",
+    "@react-native-community/netinfo": "6.0.0",
     "react-native-sync-localstorage": "0.0.3"
   },
   "peerDependencies": {
